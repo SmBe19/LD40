@@ -18,7 +18,7 @@ function love.load()
   g.billduemax = 7 -- max time for bill due duration in days
   g.lastbill = -g.billrate -- time of the last bill
   g.loanamount = 1000 -- amount per loan taken
-  g.loanincrease = 1.05 -- multiplier for loan amount
+  g.loanincrease = 1.02 -- multiplier for loan amount
   g.loanrate = 70 -- time after which interest of a loan is owed
   g.interestmin = 0.05 -- minimal interest
   g.interestmax = 0.3 -- maximal interest
@@ -29,7 +29,8 @@ function love.load()
   g.dayduration = 7 -- duration of day in seconds
   g.activebill = nil -- currently selected bill
   g.loandialogopen = false -- whether a dialog for a loan is currently open
-  g.username = "" -- current username
+  g.defaultusernames = {"Alice", "Bob", "Eve", "Mallory"}
+  g.username = g.defaultusernames[love.math.random(1, #g.defaultusernames)] -- current username
   g.usernameallowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ " -- allowed chars in usernames
   g.loans = {} -- list of all loans
   g.bills = {} -- list of all bills
@@ -40,7 +41,7 @@ function love.load()
   reset()
 
   g.compname = {}
-  g.compname[1] = {"Alphabet", "Fruity", "Space", "Ludum", "Giant", "Mike", "Nikola", "Lazy", "Fast", "Happy", "M$", "Electronic", "Sealed", "X"}
+  g.compname[1] = {"Alphabet", "Fruity", "Space", "Ludum", "Giant", "Mike", "Nikola", "Lazy", "Fast", "Happy", "M.S.", "Electronic", "Sealed", "X"}
   g.compname[2] = {"Bear", "X", "Systems", "Dare", "Turtle", "Power", "Tesla", "Snail", "Jam", "Honey", "Times", "Arts", "Valve", "Apple", "Banana", "Orange", "COM", "Energy", "Air"}
   g.compname[3] = {"Inc", "Ltd", "Co", "Corp", "& Sons", "& Daughters", "Co Inc"}
   g.bankname = {}
@@ -51,15 +52,20 @@ function love.load()
   g.monthname = {"Jan", "Feb", "Mar", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dez"}
   g.suffixes = {"st", "nd", "rd", "th"}
 
-  g.okText = {"OK", "Ok", "kk", "OK!", "Whatever", "Hmm", "k", "Kthxbai"}
-  g.yesText = {"Yes", "Yess", "Ya", "Yeah"}
-  g.noText = {"No", "Noo", "Na", "Nope", "nope"}
+  g.okText = {"OK", "Ok", "kk", "OK!", "Whatever", "Hmm", "k", "Kthxbai", "Don't care", "Hm", "Ok Ok", "ACK"}
+  g.yesText = {"Yes", "Yes!", "Ya", "Yeah"}
+  g.noText = {"No", "Nooo", "Na", "Nope", "Nope"}
+  g.itemspawn = {"TV", "Car", "Fridge", "House", "Bed", "Kitchen Table", "Shoes", "Computer", "Favorite Game", "Chair", "Cupboard", "Pet Snail", "Goldfish", "Dog", "Pet Fly", "Radio", "Private Jet", "Laptop", "Phone", "Bicycle", "Umbrella", "Pet Snake", "Piano"}
 
   img = {}
   img.bg = love.graphics.newImage("data/bg.png")
   img.notice = love.graphics.newImage("data/notice_stamp.png")
   img.noticelarge = love.graphics.newImage("data/notice_stamp_large.png")
   img.money = love.graphics.newImage("data/money.png")
+  img.buttonsmall = love.graphics.newImage("data/button_small.png")
+  img.buttonmedium = love.graphics.newImage("data/button_medium.png")
+  img.buttonlarge = love.graphics.newImage("data/button_large.png")
+  img.dialog = love.graphics.newImage("data/dialog.png")
   img.calendar = love.graphics.newImage("data/calendar.png")
   img.bill = {}
   for i = 1, 1 do
@@ -78,6 +84,7 @@ function love.load()
     img.letter[#img.letter + 1] = love.graphics.newImage("data/letter_paper" .. i .. ".png")
   end
   img.fontnormal = love.graphics.newFont(12)
+  img.fontmedium = love.graphics.newFont(15)
   img.fontlarge = love.graphics.newFont(20)
   img.fonthuge = love.graphics.newFont(42)
 end
@@ -132,7 +139,7 @@ function getOrdinal(i)
   if ii > 20 then
     ii = ii % 10
   end
-  if ii > 4 then
+  if ii > 4 or ii < 1 then
     return i .. g.suffixes[4]
   else
     return i .. g.suffixes[ii]
@@ -147,7 +154,7 @@ end
 function newBill(amount, title, notice)
   local newbill = {}
   newbill.amount = math.ceil(amount or love.math.random(g.billamountmin, g.billamountmax))
-  newbill.time = math.ceil(g.time / g.dayduration) * g.dayduration
+  newbill.time = g.time
   newbill.due = love.math.random(g.billduemin, g.billduemax) * g.dayduration
   newbill.notice = not not notice
   newbill.title = title or getCompanyName()
@@ -227,32 +234,58 @@ function newLoan()
   g.loans[#g.loans+1] = newloan
 end
 
-function newButton(text, x, y, onclick)
+function newButton(text, onclick)
   local newbutton = {}
   newbutton.text = text
   newbutton.onclick = onclick
-  newbutton.x = x or 0
-  newbutton.y = y or 0
+  newbutton.x = 0
+  newbutton.y = 0
+  if newbutton.text:len() < 5 then
+    newbutton.img = img.buttonsmall
+  elseif newbutton.text:len() < 8 then
+    newbutton.img = img.buttonmedium
+  else
+    newbutton.img = img.buttonlarge
+  end
   function newbutton.draw(self)
-    love.graphics.print(self.text, self.x, self.y)
+    love.graphics.setColor(255, 255, 255)
+    love.graphics.draw(self.img, self.x, self.y)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.setFont(img.fontmedium)
+    love.graphics.print(self.text, self.x + (self.img:getWidth() - img.fontmedium:getWidth(self.text))/2, self.y + 10)
   end
   return newbutton
 end
 
 function newDialog(text, buttons)
   local newdialog = {}
-  local width = 200
+  local width = 300
   local height = 200
   newdialog.text = text
   newdialog.buttons = buttons
-  newdialog.x = love.math.random(0, 800 - width)
-  newdialog.y = love.math.random(0, 600 - height)
+  newdialog.x = love.math.random(50, 750 - width)
+  newdialog.y = love.math.random(50, 550 - height)
   newdialog.width = width
   newdialog.height = height
+
+  local buttonwidth = 0
+  for idx, button in ipairs(buttons) do
+    buttonwidth = buttonwidth + button.img:getWidth() + 15
+  end
+  local ax = width - buttonwidth
+  for idx, button in ipairs(buttons) do
+    button.x = ax
+    button.y = height - 60
+    ax = ax + button.img:getWidth() + 15
+  end
+
   function newdialog.draw(self)
+    love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
     love.graphics.translate(self.x, self.y)
-    love.graphics.print(self.text, 10, 10)
+    love.graphics.draw(img.dialog)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.print(self.text, 20, 40)
     for idx, button in ipairs(self.buttons) do
       button:draw()
     end
@@ -271,16 +304,17 @@ function newDialog(text, buttons)
   function newdialog.checkclick(self, x, y)
     if self.x < x and x < self.x + self.width and self.y < y and y < self.y + self.height then
       for idx, button in ipairs(self.buttons) do
-        if self.x + button.x < x and x < self.x + button.x + 50 and self.y + button.y < y and y < self.y + button.y + 20 then
+        if self.x + button.x < x and x < self.x + button.x + button.img:getWidth() and self.y + button.y < y and y < self.y + button.y + button.img:getWidth() then
           if button.onclick then
             button:onclick(self)
           end
           self:close()
-          return True
+          return true
         end
       end
+      return true
     end
-    return False
+    return false
   end
 
   g.dialogs[#g.dialogs+1] = newdialog
@@ -306,8 +340,8 @@ function updateHighscore()
         nxt = {line}
       else
         nxt[2] = line
-        if score >= tonumber(line) then
-          g.highscore[#g.highscore+1] = {"You", score}
+        if not found and score >= tonumber(line) then
+          g.highscore[#g.highscore+1] = {"#You", score}
           found = true
         end
         g.highscore[#g.highscore+1] = nxt
@@ -315,7 +349,10 @@ function updateHighscore()
       idx = idx + 1
     end
     if not found then
-      g.highscore[#g.highscore+1] = {"You", score}
+      g.highscore[#g.highscore+1] = {"#You", score}
+    end
+    while #g.highscore > 10 do
+      g.highscore[#g.highscore] = nil
     end
   end
 end
@@ -346,8 +383,8 @@ function love.update(dt)
               if bill == g.activebill then
                 g.activebill = nil
               end
-              newDialog("You did not pay your bill.\n" .. bill.title .. " took their money themselves.", {
-                newButton(g.okText[love.math.random(1, #g.yesText)], 80, 80)
+              newDialog("You did not pay your bill.\n" .. bill.title .. " impawned\nyour " .. g.itemspawn[love.math.random(1, #g.itemspawn)] .. ".", {
+                newButton(g.okText[love.math.random(1, #g.yesText)])
               })
             else
               g.alive = false
@@ -368,8 +405,8 @@ function love.update(dt)
 end
 
 function handleDialogClick(x, y)
-  for idx, dialog in ipairs(g.dialogs) do
-    if dialog:checkclick(x, y) then
+  for idx = #g.dialogs, 1, -1 do
+    if g.dialogs[idx]:checkclick(x, y) then
       return true
     end
   end
@@ -377,42 +414,56 @@ function handleDialogClick(x, y)
 end
 
 function love.mousereleased(x, y, button, istouch)
-  if 500 < x and x < 800 and 0 < y and y < 70 then
+  if handleDialogClick(x, y) then
+    -- do nothing
+  elseif 560 < x and x < 760 and 18 < y and y < 58 then
     if not g.loandialogopen then
-      if love.math.random(1, 8) == 2 then
+      if g.loan > 40000 and love.math.random(1, 8) == 2 then
         g.loandialogopen = true
-        newDialog("Do you really want to take a loan?", {
-          newButton(g.yesText[love.math.random(1, #g.yesText)], 80, 80, function(self, dialog) g.loandialogopen = false; newLoan() end),
-          newButton(g.noText[love.math.random(1, #g.noText)], 150, 80, function(self, dialog) g.loandialogopen = false end)
+        local text = "Really take out a loan?"
+        if love.math.random(1, 4) == 2 then
+          text = text .. "\nYou already have quite a bit of debt."
+        end
+        if love.math.random(1, 4) == 2 then
+          text = text .. "\nMaybe you should limit your spending."
+        end
+        newDialog(text, {
+          newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) g.loandialogopen = false; newLoan() end),
+          newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) g.loandialogopen = false end)
         })
       else
         newLoan()
       end
     end
-  elseif g.activebill and 300 < x and x < 500 and 410 < y and y < 450 then
+  elseif g.activebill and 350 < x and x < 450 and 390 < y and y < 430 then
     if g.activebill.amount <= g.money then
       if not g.activebill.dialogopen then
         if love.math.random(1, 8) == 2 then
           local bill = g.activebill
           bill.dialogopen = true
-          newDialog("Do you really want to pay $" .. g.activebill.amount .. " to " .. g.activebill.title .. "?", {
-            newButton(g.yesText[love.math.random(1, #g.yesText)], 80, 80, function(self, dialog) bill:onpay(); bill.dialogopen = false end),
-            newButton(g.noText[love.math.random(1, #g.noText)],150, 80, function(self, dialog) bill.dialogopen = false end)
+          local text = "Do you really want to pay\n$" .. g.activebill.amount .. " to " .. g.activebill.title .. "?"
+          if love.math.random(1, 4) == 2 then
+            text = text .. "\nYou might need it for something else."
+          end
+          if love.math.random(1, 4) == 2 then
+            text = text .. "\nIt's quite a large amount."
+          end
+          newDialog(text, {
+            newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) bill:onpay(); bill.dialogopen = false end),
+            newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) bill.dialogopen = false end)
           })
         else
           g.activebill:onpay()
         end
       end
     else
-      newDialog("You don't have enough money.\nMaybe you should take a loan.", {
-        newButton(g.okText[love.math.random(1, #g.yesText)], 80, 80)
+      newDialog("You don't have enough money.\nMaybe you should take out a loan.", {
+        newButton(g.okText[love.math.random(1, #g.yesText)])
       })
     end
-  elseif handleDialogClick(x, y) then
-    -- do nothing
   else
     local clickedbill = nil
-    local ax = 20
+    local ax = 40
     local ay = 50
     for idx, bill in ipairs(g.bills) do
       if not bill.paid then
@@ -485,7 +536,7 @@ function love.draw()
     -- bills
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    love.graphics.translate(20, 20)
+    love.graphics.translate(40, 20)
 
     for idx, bill in ipairs(g.bills) do
       if not bill.paid then
@@ -508,12 +559,15 @@ function love.draw()
       end
       love.graphics.setColor(20, 20, 20)
       love.graphics.print(g.activebill.title, 10, 10)
-      local text = "Due " .. getDayName(g.activebill.time + g.activebill.due)
+      local text = "Due " .. getDayName(g.activebill.time + g.activebill.due - g.dayduration)
       love.graphics.print(text, 100 - img.fontnormal:getWidth(text)/2, 190)
       love.graphics.setFont(img.fontlarge)
       love.graphics.print("$" .. g.activebill.amount, 115, 245)
       text = "Pay bill"
-      love.graphics.print("Pay bill", 100 - img.fontlarge:getWidth(text) / 2, 340)
+      love.graphics.setColor(255, 255, 255)
+      love.graphics.draw(img.buttonsmall, 50, 310)
+      love.graphics.setColor(20, 20, 20)
+      love.graphics.print("Pay bill", 100 - img.fontlarge:getWidth(text) / 2, 320)
     end
 
     -- UI
@@ -548,8 +602,10 @@ function love.draw()
     -- Loan
     text = "Get $" .. g.loanamount .. " Loan (" .. (currentInterest() * 100) .. "%)"
     love.graphics.origin()
-    love.graphics.setFont(img.fontlarge)
-    love.graphics.translate(750 - img.fontlarge:getWidth(text), 30)
+    love.graphics.setFont(img.fontmedium)
+    love.graphics.draw(img.buttonlarge, 560, 18)
+    love.graphics.translate(750 - img.fontmedium:getWidth(text), 30)
+    love.graphics.setColor(20, 20, 20)
     love.graphics.print(text)
 
     -- Dialogs
@@ -571,24 +627,41 @@ function love.draw()
     love.graphics.setFont(img.fontnormal)
 
     love.graphics.origin()
-    love.graphics.translate(150, 150)
-    love.graphics.print("The bill of " .. g.activebill.title .. " bankrupted you!")
+    love.graphics.translate(250, 100)
+    love.graphics.draw(img.dialog, 0, 0)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.translate(20, 40)
+    love.graphics.print("Game Over!", 0, -33)
+    love.graphics.print("You are bankrupt!\nYou are unable to pay the bill of\n" .. g.activebill.title .. ".", 0, 0)
+    love.graphics.translate(0, 60)
+    love.graphics.print("Score: " .. math.floor(g.time) .. "s (" .. getDayName(g.time) .. ")", 0, 0)
     love.graphics.translate(0, 20)
-    love.graphics.print("Score: " .. math.floor(g.time) .. "s")
-    love.graphics.translate(0, 20)
+    love.graphics.setColor(200, 0, 0)
     love.graphics.print("Enter username: " .. g.username)
+    love.graphics.translate(0, 20)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.print("(Return: submit score, Escape: restart)")
 
-    love.graphics.translate(0, 40)
+    love.graphics.translate(-20, 80)
+    love.graphics.setColor(255, 255, 255)
+    love.graphics.draw(img.dialog, 0, 0)
+    love.graphics.translate(20, 40)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.print("Highscore", 0, -33)
     for idx, high in ipairs(g.highscore) do
-      if high[1] == "You" and high[2] == math.floor(g.time) then
+      if high[1] == "#You" and high[2] == math.floor(g.time) then
         love.graphics.setColor(200, 0, 0)
       else
-        love.graphics.setColor(255, 255, 255)
+        love.graphics.setColor(20, 20, 20)
       end
-      love.graphics.print(getOrdinal(idx), 0, 0)
-      love.graphics.print(high[2] .. "s", 50, 0)
-      love.graphics.print(high[1], 100, 0)
-      love.graphics.translate(0, 20)
+      local function rightalign(text, x, y)
+        love.graphics.print(text, x - img.fontnormal:getWidth(text), y)
+      end
+      rightalign(getOrdinal(idx), 20, 0)
+      rightalign(high[2] .. "s", 60, 0)
+      rightalign(getDayName(high[2]), 125, 0)
+      love.graphics.print((high[1] == "#You") and g.username or high[1], 145, 0)
+      love.graphics.translate(0, 15)
     end
   end
 end
