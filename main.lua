@@ -8,7 +8,7 @@ function love.load()
   g.time = 0 -- current time since start in seconds
   g.billrate = 10 -- a new bill arrives each x seconds
   g.billamount = 500 -- max amount of a bill
-  g.billdue = 70 -- max time for bill due duration in seconds
+  g.billdue = 7 -- max time for bill due duration in days
   g.lastbill = -g.billrate -- time of the last bill
   g.loanamount = 1000 -- amount per loan taken
   g.loanrate = 70 -- time after which interest of a loan is owed
@@ -34,9 +34,15 @@ function love.load()
   g.bankname[1] = {"Credit Suisse", "Bank of America", "UBS", "Matteo's Credit", "China Financial"}
   g.bankname[2] = {"Inc", "Ltd", "Co", "Corp", "& Sons"}
 
+  g.months = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+  g.monthname = {"Jan", "Feb", "Mar", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dez"}
+  g.suffixes = {"st", "nd", "rd", "th"}
+
+
   img = {}
   img.bg = love.graphics.newImage("data/bg.png")
   img.notice = love.graphics.newImage("data/notice_stamp.png")
+  img.calendar = love.graphics.newImage("data/calendar.png")
   img.bill = {}
   for i = 1, 1 do
     img.bill[#img.bill + 1] = love.graphics.newImage("data/bill" .. i .. ".png")
@@ -49,12 +55,17 @@ function love.load()
   for i = 1, 1 do
     img.loan[#img.loan + 1] = love.graphics.newImage("data/loan" .. i .. ".png")
   end
+  img.letter = {}
+  for i = 1, 1 do
+    img.letter[#img.letter + 1] = love.graphics.newImage("data/letter_paper" .. i .. ".png")
+  end
   img.fontnormal = love.graphics.newFont(12)
   img.fontlarge = love.graphics.newFont(20)
+  img.fonthuge = love.graphics.newFont(42)
 end
 
 function reset()
-  g.alive = false
+  g.alive = true
   g.time = 0
   g.money = 0
   g.loan = 0
@@ -83,11 +94,38 @@ function getBankName()
   return getRandomName(g.bankname)
 end
 
+function getMonthDay(t)
+  local day = math.ceil(t / g.dayduration) % 365
+  local sol = {1, day}
+  while sol[2] > g.months[sol[1]] do
+    sol[2] = sol[2] - g.months[sol[1]]
+    sol[1] = sol[1] + 1
+  end
+  return sol
+end
+
+function getOrdinal(i)
+  local ii = i
+  if ii > 20 then
+    ii = ii % 10
+  end
+  if ii > 4 then
+    return i .. g.suffixes[4]
+  else
+    return i .. g.suffixes[ii]
+  end
+end
+
+function getDayName(t)
+  local monthday = getMonthDay(t)
+  return g.monthname[monthday[1]] .. " " .. getOrdinal(monthday[2])
+end
+
 function newBill(amount, title, notice)
   local newbill = {}
   newbill.amount = amount or math.floor(love.math.random() * g.billamount / 2 + g.billamount / 2)
-  newbill.time = g.time
-  newbill.due = math.floor(love.math.random() * g.billdue / 2 + g.billdue / 2)
+  newbill.time = math.ceil(g.time / g.dayduration) * g.dayduration
+  newbill.due = math.floor(love.math.random() * g.billdue / 2 + g.billdue / 2) * g.dayduration
   newbill.notice = not not notice
   newbill.title = title or getCompanyName()
   newbill.opened = false
@@ -98,6 +136,7 @@ function newBill(amount, title, notice)
   newbill.rotation = (love.math.random() - 0.5) * math.pi / 8
   newbill.img = img.bill[love.math.random(1, #img.bill)]
   newbill.imgopen = img.billopened[love.math.random(1, #img.billopened)]
+  newbill.imgletter = img.letter[love.math.random(1, #img.letter)]
   function newbill.draw(self)
     love.graphics.setColor(self.color)
     if self.opened then
@@ -157,7 +196,7 @@ function love.update(dt)
     end
     for idx, loan in ipairs(g.loans) do
       if g.time - loan.lastinterest > g.loanrate then
-        newBill(loan.amount * loan.interest, "Interest: " .. loan.title)
+        newBill(loan.amount * loan.interest, loan.title .. " Interest")
         loan.lastinterest = g.time
       end
     end
@@ -173,7 +212,7 @@ function love.update(dt)
             end
           else
             bill.paid = true
-            newBill(bill.amount, "Notice: " .. bill.title, bill.amount + bill.amount * g.noticeincrease)
+            newBill(bill.amount, bill.title, bill.amount + bill.amount * g.noticeincrease)
           end
         end
       end
@@ -182,7 +221,7 @@ function love.update(dt)
 end
 
 function love.mousereleased(x, y, button, istouch)
-  if 260 < x and x < 540 and 80 < y and y < 130 then
+  if 500 < x and x < 800 and 0 < y and y < 70 then
     newLoan()
   else
     local clickedbill = nil
@@ -246,13 +285,13 @@ function love.draw()
     -- loans
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    love.graphics.translate(700, 50)
+    love.graphics.translate(700, 75)
 
     for idx, loan in ipairs(g.loans) do
       loan:draw()
       love.graphics.translate(0, 25)
-      if idx % 20 == 0 then
-        love.graphics.translate(-40, -25*20)
+      if idx % 19 == 0 then
+        love.graphics.translate(-40, -25*19)
       end
     end
 
@@ -273,17 +312,51 @@ function love.draw()
       end
     end
 
+    if g.activebill then
+      love.graphics.setColor(g.activebill.color)
+      love.graphics.setFont(img.fontnormal)
+      love.graphics.origin()
+      love.graphics.translate(300, 80)
+      love.graphics.draw(g.activebill.imgletter)
+      if g.activebill.notice then
+        love.graphics.draw(img.notice, 150, -25)
+      end
+      love.graphics.setColor(20, 20, 20)
+      love.graphics.print(g.activebill.title, 10, 10)
+      local text = "Due " .. getDayName(g.activebill.time + g.activebill.due)
+      love.graphics.print(text, 100 - img.fontnormal:getWidth(text)/2, 190)
+      love.graphics.setFont(img.fontlarge)
+      love.graphics.print("$" .. g.activebill.amount, 115, 245)
+    end
+
     -- UI
     local text = ""
+    local monthday = getMonthDay(g.time)
+    love.graphics.setColor(255, 255, 255)
+    love.graphics.origin()
+    love.graphics.translate(350, 440)
+    love.graphics.draw(img.calendar)
+    love.graphics.setFont(img.fonthuge)
+    love.graphics.push()
+    love.graphics.translate(50 - img.fonthuge:getWidth(monthday[2]) / 2, 25)
+    love.graphics.setColor(200, 0, 0)
+    love.graphics.print(monthday[2])
+    love.graphics.pop()
+    text = g.monthname[monthday[1]]
+    love.graphics.setFont(img.fontnormal)
+    love.graphics.setColor(20, 20, 20)
+    love.graphics.translate(50 - img.fontnormal:getWidth(text)/2, 75)
+    love.graphics.print(text)
+
     text = "$ " .. g.money
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    love.graphics.translate(400 - img.fontlarge:getWidth(text) / 2, 50)
+    love.graphics.translate(400 - img.fontlarge:getWidth(text) / 2, 30)
     love.graphics.setFont(img.fontlarge)
     love.graphics.print(text)
     text = "Get $1000 loan (" .. (currentInterest() * 100) .. "%)"
     love.graphics.origin()
-    love.graphics.translate(400 - img.fontlarge:getWidth(text) / 2, 100)
+    love.graphics.translate(750 - img.fontlarge:getWidth(text), 30)
     love.graphics.print(text)
   else
     -- background
