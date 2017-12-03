@@ -1,12 +1,9 @@
 Art
 ===
- - Dialog background
- - Button small
- - Button large
+ - nicer Dialog background
+ - nicer Button small
+ - 2nd letter_paper
 
 Code
 ====
- - Dialog Boxes
- - Better Game Over Screen
- - Include new Art
- - Balancing
+ - Publish game

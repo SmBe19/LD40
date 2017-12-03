@@ -9,8 +9,8 @@ function love.load()
   g.loan = 0 -- total loans taken
   g.time = 0 -- current time since start in seconds
   g.billrate = 10 -- a new bill arrives each x seconds
-  g.billratemin = 4
-  g.billrateincrease = 0.95 -- multiplier for billrate
+  g.billratemin = 5 -- minimal bill rate
+  g.billrateincrease = 0.98 -- multiplier for billrate
   g.billamountmax = 1000 -- max amount of a bill
   g.billamountmin = 100 -- min amount of a bill
   g.billamountincrease = 1.07 -- multiplier for bill amount
@@ -29,7 +29,7 @@ function love.load()
   g.dayduration = 7 -- duration of day in seconds
   g.activebill = nil -- currently selected bill
   g.loandialogopen = false -- whether a dialog for a loan is currently open
-  g.defaultusernames = {"Alice", "Bob", "Eve", "Mallory"}
+  g.defaultusernames = {"Alice", "Bob", "Carol", "Eve", "Mallory", "Oscar", "Trudy", "Trent"}
   g.username = g.defaultusernames[love.math.random(1, #g.defaultusernames)] -- current username
   g.usernameallowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ " -- allowed chars in usernames
   g.loans = {} -- list of all loans
@@ -257,10 +257,21 @@ function newButton(text, onclick)
   return newbutton
 end
 
+function shuffleArray(t)
+  size = #t
+  for i = size, 1, -1 do
+    local rand = love.math.random(size)
+    t[i], t[rand] = t[rand], t[i]
+  end
+  return t
+end
+
 function newDialog(text, buttons)
   local newdialog = {}
   local width = 300
   local height = 200
+  shuffleArray(buttons)
+
   newdialog.text = text
   newdialog.buttons = buttons
   newdialog.x = love.math.random(50, 750 - width)
@@ -414,72 +425,74 @@ function handleDialogClick(x, y)
 end
 
 function love.mousereleased(x, y, button, istouch)
-  if handleDialogClick(x, y) then
-    -- do nothing
-  elseif 560 < x and x < 760 and 18 < y and y < 58 then
-    if not g.loandialogopen then
-      if g.loan > 40000 and love.math.random(1, 8) == 2 then
-        g.loandialogopen = true
-        local text = "Really take out a loan?"
-        if love.math.random(1, 4) == 2 then
-          text = text .. "\nYou already have quite a bit of debt."
-        end
-        if love.math.random(1, 4) == 2 then
-          text = text .. "\nMaybe you should limit your spending."
-        end
-        newDialog(text, {
-          newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) g.loandialogopen = false; newLoan() end),
-          newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) g.loandialogopen = false end)
-        })
-      else
-        newLoan()
-      end
-    end
-  elseif g.activebill and 350 < x and x < 450 and 390 < y and y < 430 then
-    if g.activebill.amount <= g.money then
-      if not g.activebill.dialogopen then
-        if love.math.random(1, 8) == 2 then
-          local bill = g.activebill
-          bill.dialogopen = true
-          local text = "Do you really want to pay\n$" .. g.activebill.amount .. " to " .. g.activebill.title .. "?"
+  if g.alive then
+    if handleDialogClick(x, y) then
+      -- do nothing
+    elseif 560 < x and x < 760 and 18 < y and y < 58 then
+      if not g.loandialogopen then
+        if g.loan > 40000 and love.math.random(1, 8) == 2 then
+          g.loandialogopen = true
+          local text = "Really take out a loan?"
           if love.math.random(1, 4) == 2 then
-            text = text .. "\nYou might need it for something else."
+            text = text .. "\nYou already have quite a bit of debt."
           end
           if love.math.random(1, 4) == 2 then
-            text = text .. "\nIt's quite a large amount."
+            text = text .. "\nMaybe you should limit your spending."
           end
           newDialog(text, {
-            newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) bill:onpay(); bill.dialogopen = false end),
-            newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) bill.dialogopen = false end)
+            newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) g.loandialogopen = false; newLoan() end),
+            newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) g.loandialogopen = false end)
           })
         else
-          g.activebill:onpay()
+          newLoan()
         end
+      end
+    elseif g.activebill and 350 < x and x < 450 and 390 < y and y < 430 then
+      if g.activebill.amount <= g.money then
+        if not g.activebill.dialogopen then
+          if love.math.random(1, 8) == 2 then
+            local bill = g.activebill
+            bill.dialogopen = true
+            local text = "Do you really want to pay\n$" .. g.activebill.amount .. " to " .. g.activebill.title .. "?"
+            if love.math.random(1, 4) == 2 then
+              text = text .. "\nYou might need it for something else."
+            end
+            if love.math.random(1, 4) == 2 then
+              text = text .. "\nIt's quite a large amount."
+            end
+            newDialog(text, {
+              newButton(g.yesText[love.math.random(1, #g.yesText)], function(self, dialog) bill:onpay(); bill.dialogopen = false end),
+              newButton(g.noText[love.math.random(1, #g.noText)], function(self, dialog) bill.dialogopen = false end)
+            })
+          else
+            g.activebill:onpay()
+          end
+        end
+      else
+        newDialog("You don't have enough money.\nMaybe you should take out a loan.", {
+          newButton(g.okText[love.math.random(1, #g.yesText)])
+        })
       end
     else
-      newDialog("You don't have enough money.\nMaybe you should take out a loan.", {
-        newButton(g.okText[love.math.random(1, #g.yesText)])
-      })
-    end
-  else
-    local clickedbill = nil
-    local ax = 40
-    local ay = 50
-    for idx, bill in ipairs(g.bills) do
-      if not bill.paid then
-        if ax + bill.offx < x and x < ax + bill.offx + 80 and ay + bill.offy < y and y < ay  + bill.offy + 50 then
-          clickedbill = bill
+      local clickedbill = nil
+      local ax = 40
+      local ay = 50
+      for idx, bill in ipairs(g.bills) do
+        if not bill.paid then
+          if ax + bill.offx < x and x < ax + bill.offx + 80 and ay + bill.offy < y and y < ay  + bill.offy + 50 then
+            clickedbill = bill
+          end
+        end
+        ay = ay + 25
+        if idx % 20 == 0 then
+          ax = ax + 40
+          ay = ay - 25*20
         end
       end
-      ay = ay + 25
-      if idx % 20 == 0 then
-        ax = ax + 40
-        ay = ay - 25*20
+      if clickedbill then
+        g.activebill = clickedbill
+        g.activebill.opened = true
       end
-    end
-    if clickedbill then
-      g.activebill = clickedbill
-      g.activebill.opened = true
     end
   end
 end
