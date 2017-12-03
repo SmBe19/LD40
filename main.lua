@@ -7,8 +7,12 @@ function love.load()
   g.loan = 0 -- total loans taken
   g.time = 0 -- current time since start in seconds
   g.billrate = 10 -- a new bill arrives each x seconds
-  g.billamount = 500 -- max amount of a bill
-  g.billdue = 7 -- max time for bill due duration in days
+  g.billrateincrease = 0.95 -- multiplier for billrate
+  g.billamountmax = 1000 -- max amount of a bill
+  g.billamountmin = 100 -- min amount of a bill
+  g.billamountincrease = 1.2 -- multiplier for bill amount
+  g.billduemin = 2 -- min time for bill due duration in days
+  g.billduemax = 7 -- max time for bill due duration in days
   g.lastbill = -g.billrate -- time of the last bill
   g.loanamount = 1000 -- amount per loan taken
   g.loanrate = 70 -- time after which interest of a loan is owed
@@ -70,6 +74,8 @@ function reset()
   g.money = 0
   g.loan = 0
   g.billrate = 10
+  g.billamountmax = 1000
+  g.billamountmin = 100
   g.lastbill = -g.billrate
   g.bills = {}
   g.loans = {}
@@ -123,9 +129,9 @@ end
 
 function newBill(amount, title, notice)
   local newbill = {}
-  newbill.amount = amount or math.floor(love.math.random() * g.billamount / 2 + g.billamount / 2)
+  newbill.amount = amount or love.math.random(g.billamountmin, g.billamountmax)
   newbill.time = math.ceil(g.time / g.dayduration) * g.dayduration
-  newbill.due = math.floor(love.math.random() * g.billdue / 2 + g.billdue / 2) * g.dayduration
+  newbill.due = love.math.random(g.billduemin, g.billduemax) * g.dayduration
   newbill.notice = not not notice
   newbill.title = title or getCompanyName()
   newbill.opened = false
@@ -152,9 +158,23 @@ function newBill(amount, title, notice)
     if g.money >= self.amount then
       g.money = g.money - self.amount
       self.paid = true
+      if self == g.activebill then
+        g.activebill = nil
+      end
     end
   end
-  g.bills[#g.bills+1] = newbill
+
+  local found = false
+  for idx, bill in ipairs(g.bills) do
+    if bill.paid then
+      g.bills[idx] = newbill
+      found = true
+      break
+    end
+  end
+  if not found then
+    g.bills[#g.bills+1] = newbill
+  end
 end
 
 function currentInterest()
@@ -173,9 +193,10 @@ function newLoan()
   newloan.title = getBankName()
   newloan.offx = love.math.random(-2, 2)
   newloan.offy = love.math.random(-2, 2)
+  newloan.rotation = (love.math.random() - 0.5) * math.pi / 8
   newloan.img = img.loan[love.math.random(1, #img.loan)]
   function newloan.draw(self)
-    love.graphics.draw(self.img, self.offx, self.offy)
+    love.graphics.draw(self.img, self.offx, self.offy, self.rotation)
   end
   g.money = g.money + newloan.amount
   g.loan = g.loan + newloan.amount
@@ -192,7 +213,8 @@ function love.update(dt)
     if g.time - g.lastbill > g.billrate then
       newBill()
       g.lastbill = g.time
-      g.billrate = g.billrate * 0.99
+      g.billrate = g.billrate * g.billrateincrease
+      g.billamountmax = g.billamountmax * g.billamountincrease
     end
     for idx, loan in ipairs(g.loans) do
       if g.time - loan.lastinterest > g.loanrate then
@@ -207,11 +229,17 @@ function love.update(dt)
             g.money = g.money - bill.amount * g.notpaidincrease
             if g.money >= bill.amount * g.notpaidincrease then
               bill.paid = true
+              if bill == g.activebill then
+                g.activebill = nil
+              end
             else
               g.alive = false
             end
           else
             bill.paid = true
+            if bill == g.activebill then
+              g.activebill = nil
+            end
             newBill(bill.amount, bill.title, bill.amount + bill.amount * g.noticeincrease)
           end
         end
@@ -223,22 +251,22 @@ end
 function love.mousereleased(x, y, button, istouch)
   if 500 < x and x < 800 and 0 < y and y < 70 then
     newLoan()
+  elseif g.activebill and 300 < x and x < 500 and 410 < y and y < 450 then
+    g.activebill:onpay()
   else
     local clickedbill = nil
     local ax = 20
     local ay = 50
-    local drawnum = 1
     for idx, bill in ipairs(g.bills) do
       if not bill.paid then
         if ax + bill.offx < x and x < ax + bill.offx + 80 and ay + bill.offy < y and y < ay  + bill.offy + 50 then
           clickedbill = bill
         end
-        ay = ay + 25
-        if drawnum % 20 == 0 then
-          ax = ax + 40
-          ay = ay - 25*20
-        end
-        drawnum = drawnum + 1
+      end
+      ay = ay + 25
+      if idx % 20 == 0 then
+        ax = ax + 40
+        ay = ay - 25*20
       end
     end
     if clickedbill then
@@ -300,15 +328,13 @@ function love.draw()
     love.graphics.origin()
     love.graphics.translate(20, 20)
 
-    local drawnum = 1
     for idx, bill in ipairs(g.bills) do
       if not bill.paid then
         bill:draw()
-        love.graphics.translate(0, 25)
-        if drawnum % 20 == 0 then
-          love.graphics.translate(40, -25*20)
-        end
-        drawnum = drawnum + 1
+      end
+      love.graphics.translate(0, 25)
+      if idx % 20 == 0 then
+        love.graphics.translate(40, -25*20)
       end
     end
 
@@ -327,6 +353,8 @@ function love.draw()
       love.graphics.print(text, 100 - img.fontnormal:getWidth(text)/2, 190)
       love.graphics.setFont(img.fontlarge)
       love.graphics.print("$" .. g.activebill.amount, 115, 245)
+      text = "Pay bill"
+      love.graphics.print("Pay bill", 100 - img.fontlarge:getWidth(text) / 2, 340)
     end
 
     -- UI
@@ -334,7 +362,7 @@ function love.draw()
     local monthday = getMonthDay(g.time)
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    love.graphics.translate(350, 440)
+    love.graphics.translate(350, 460)
     love.graphics.draw(img.calendar)
     love.graphics.setFont(img.fonthuge)
     love.graphics.push()

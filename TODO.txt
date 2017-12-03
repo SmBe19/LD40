@@ -1,0 +1,16 @@
+Art
+===
+ - Large Notice Stamp
+ - Dialog background
+ - Button small
+ - Button large
+ - Money background
+
+Code
+====
+ - Dialog Boxes
+ - Better Game Over Screen
+ - Highscore submit
+ - Highscore display
+ - Include new Art
+ - Balancing
