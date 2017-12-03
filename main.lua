@@ -280,7 +280,7 @@ function love.draw()
     love.graphics.setFont(img.fontnormal)
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    -- love.graphics.draw(img.bg, 0, 0)
+    love.graphics.draw(img.bg, 0, 0)
 
     -- loans
     love.graphics.setColor(255, 255, 255)
@@ -363,7 +363,7 @@ function love.draw()
     love.graphics.setFont(img.fontnormal)
     love.graphics.setColor(255, 255, 255)
     love.graphics.origin()
-    -- love.graphics.draw(img.bg, 0, 0)
+    love.graphics.draw(img.bg, 0, 0)
 
     love.graphics.translate(50, 50)
     love.graphics.print("Score: " .. g.time .. " s")
