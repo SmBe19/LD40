@@ -1,9 +1,0 @@
-Art
-===
- - nicer Dialog background
- - nicer Button small
- - 2nd letter_paper
-
-Code
-====
- - Publish game
