@@ -80,7 +80,7 @@ function love.load()
     img.loan[#img.loan + 1] = love.graphics.newImage("data/loan" .. i .. ".png")
   end
   img.letter = {}
-  for i = 1, 1 do
+  for i = 1, 3 do
     img.letter[#img.letter + 1] = love.graphics.newImage("data/letter_paper" .. i .. ".png")
   end
   img.fontnormal = love.graphics.newFont(12)
@@ -252,7 +252,7 @@ function newButton(text, onclick)
     love.graphics.draw(self.img, self.x, self.y)
     love.graphics.setColor(20, 20, 20)
     love.graphics.setFont(img.fontmedium)
-    love.graphics.print(self.text, self.x + (self.img:getWidth() - img.fontmedium:getWidth(self.text))/2, self.y + 10)
+    love.graphics.print(self.text, self.x + math.floor((self.img:getWidth() - img.fontmedium:getWidth(self.text))/2), self.y + 10)
   end
   return newbutton
 end
@@ -286,7 +286,7 @@ function newDialog(text, buttons)
   local ax = width - buttonwidth
   for idx, button in ipairs(buttons) do
     button.x = ax
-    button.y = height - 60
+    button.y = height - 55
     ax = ax + button.img:getWidth() + 15
   end
 
@@ -332,6 +332,7 @@ function newDialog(text, buttons)
 end
 
 function submitHighscore()
+  -- please don't submit fake scores, would be sad to take down the high score system
   local score = math.floor(g.time)
   local magic = score % 17 * g.username:len() + math.floor(score / 17)
   local niceusername = httpurl.escape(g.username)
@@ -341,11 +342,11 @@ end
 function updateHighscore()
   local score = math.floor(g.time)
   body, code = http.request(g.highscoreserver .. "/get.php?format=lua")
+  local found = false
+  g.highscore = {}
   if code == 200 then
     local idx = 1
     local nxt
-    local found = false
-    g.highscore = {}
     for line in body:gmatch("[^\n]+") do
       if idx % 2 == 1 then
         nxt = {line}
@@ -359,16 +360,25 @@ function updateHighscore()
       end
       idx = idx + 1
     end
-    if not found then
-      g.highscore[#g.highscore+1] = {"#You", score}
+  else
+    for idx, name in ipairs(g.defaultusernames) do
+      if not found and score > 462 - idx * 42 then
+        g.highscore[#g.highscore+1] = {"#You", score}
+        found = true
+      end
+      g.highscore[#g.highscore+1] = {name, 462 - idx * 42}
     end
-    while #g.highscore > 10 do
-      g.highscore[#g.highscore] = nil
-    end
+  end
+  if not found then
+    g.highscore[#g.highscore+1] = {"#You", score}
+  end
+  while #g.highscore > 10 do
+    g.highscore[#g.highscore] = nil
   end
 end
 
 function love.update(dt)
+  dt = math.min(dt, 5)
   if g.alive then
     g.time = g.time + dt
     if g.time - g.lastbill > g.billrate then
@@ -573,14 +583,14 @@ function love.draw()
       love.graphics.setColor(20, 20, 20)
       love.graphics.print(g.activebill.title, 10, 10)
       local text = "Due " .. getDayName(g.activebill.time + g.activebill.due - g.dayduration)
-      love.graphics.print(text, 100 - img.fontnormal:getWidth(text)/2, 190)
+      love.graphics.print(text, 100 - math.floor(img.fontnormal:getWidth(text)/2), 195)
       love.graphics.setFont(img.fontlarge)
       love.graphics.print("$" .. g.activebill.amount, 115, 245)
       text = "Pay bill"
       love.graphics.setColor(255, 255, 255)
       love.graphics.draw(img.buttonsmall, 50, 310)
       love.graphics.setColor(20, 20, 20)
-      love.graphics.print("Pay bill", 100 - img.fontlarge:getWidth(text) / 2, 320)
+      love.graphics.print("Pay bill", 100 - math.floor(img.fontlarge:getWidth(text)/2), 320)
     end
 
     -- UI
@@ -593,14 +603,14 @@ function love.draw()
     love.graphics.draw(img.calendar)
     love.graphics.setFont(img.fonthuge)
     love.graphics.push()
-    love.graphics.translate(50 - img.fonthuge:getWidth(monthday[2]) / 2, 25)
+    love.graphics.translate(50 - math.floor(img.fonthuge:getWidth(monthday[2])/2), 25)
     love.graphics.setColor(200, 0, 0)
     love.graphics.print(monthday[2])
     love.graphics.pop()
     text = g.monthname[monthday[1]]
     love.graphics.setFont(img.fontnormal)
     love.graphics.setColor(20, 20, 20)
-    love.graphics.translate(50 - img.fontnormal:getWidth(text)/2, 75)
+    love.graphics.translate(50 - math.floor(img.fontnormal:getWidth(text)/2), 75)
     love.graphics.print(text)
 
     -- Money
@@ -609,7 +619,7 @@ function love.draw()
     love.graphics.origin()
     love.graphics.draw(img.money, 320, 20)
     love.graphics.setFont(img.fontlarge)
-    love.graphics.translate(400 - img.fontlarge:getWidth(text) / 2, 30)
+    love.graphics.translate(400 - math.floor(img.fontlarge:getWidth(text)/2), 30)
     love.graphics.print(text)
 
     -- Loan
@@ -617,7 +627,7 @@ function love.draw()
     love.graphics.origin()
     love.graphics.setFont(img.fontmedium)
     love.graphics.draw(img.buttonlarge, 560, 18)
-    love.graphics.translate(750 - img.fontmedium:getWidth(text), 30)
+    love.graphics.translate(750 - math.floor(img.fontmedium:getWidth(text)), 30)
     love.graphics.setColor(20, 20, 20)
     love.graphics.print(text)
 
@@ -634,7 +644,7 @@ function love.draw()
     love.graphics.origin()
     love.graphics.draw(img.money, 320, 20)
     love.graphics.setFont(img.fontlarge)
-    love.graphics.translate(400 - img.fontlarge:getWidth(text) / 2, 30)
+    love.graphics.translate(400 - math.floor(img.fontlarge:getWidth(text)/2), 30)
     love.graphics.print(text)
 
     love.graphics.setFont(img.fontnormal)
@@ -668,7 +678,7 @@ function love.draw()
         love.graphics.setColor(20, 20, 20)
       end
       local function rightalign(text, x, y)
-        love.graphics.print(text, x - img.fontnormal:getWidth(text), y)
+        love.graphics.print(text, x - math.floor(img.fontnormal:getWidth(text)), y)
       end
       rightalign(getOrdinal(idx), 20, 0)
       rightalign(high[2] .. "s", 60, 0)

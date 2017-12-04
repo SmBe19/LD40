@@ -1,7 +1,7 @@
 Student Loan Simulator 2017 Ramen Edition
 =========================================
 
-Play as an aspiring young student. Experience the joy of taking out a loan to pay your bills.
+Play as an aspiring young student. Experience the joy of taking out a loan to pay your bills. Featuring iconic companies like "Fruity Bear & Sons" or "Happy Turtle Co Inc".
 
 Features
 --------
@@ -28,3 +28,9 @@ Team
 ----
  - Art: Matteo Signer
  - Code: Benjamin Schmid
+
+Installation
+------------
+The HTML5 build does not support high scores and might have some bugs. Use the downloadable game for the best experience.
+
+To run the game download [Löve](https://love2d.org/) for your platform and then open the downloaded .love file with Löve. For Windows you can also download a complete bundle which already includes Löve.
