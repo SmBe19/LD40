@@ -676,5 +676,10 @@ function love.draw()
       love.graphics.print((high[1] == "#You") and g.username or high[1], 145, 0)
       love.graphics.translate(0, 15)
     end
+
+    love.graphics.origin()
+    love.graphics.translate(20, 20)
+    love.graphics.setColor(20, 20, 20, 170)
+    love.graphics.print("Made by:\nMatteo Signer (Art)\nBenjamin Schmid (Code)")
   end
 end
