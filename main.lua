@@ -49,7 +49,7 @@ function love.load()
   g.bankname[2] = {"Inc", "Ltd", "Co", "Financial", "Trust"}
 
   g.months = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-  g.monthname = {"Jan", "Feb", "Mar", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dez"}
+  g.monthname = {"Jan", "Feb", "Mar", "April", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dez"}
   g.suffixes = {"st", "nd", "rd", "th"}
 
   g.okText = {"OK", "Ok", "kk", "OK!", "Whatever", "Hmm", "k", "Kthxbai", "Don't care", "Hm", "Ok Ok", "ACK"}
@@ -619,7 +619,7 @@ function love.draw()
     love.graphics.origin()
     love.graphics.draw(img.money, 320, 20)
     love.graphics.setFont(img.fontlarge)
-    love.graphics.translate(400 - math.floor(img.fontlarge:getWidth(text)/2), 30)
+    love.graphics.translate(470 - math.floor(img.fontlarge:getWidth(text)), 30)
     love.graphics.print(text)
 
     -- Loan
@@ -644,7 +644,7 @@ function love.draw()
     love.graphics.origin()
     love.graphics.draw(img.money, 320, 20)
     love.graphics.setFont(img.fontlarge)
-    love.graphics.translate(400 - math.floor(img.fontlarge:getWidth(text)/2), 30)
+    love.graphics.translate(470 - math.floor(img.fontlarge:getWidth(text)), 30)
     love.graphics.print(text)
 
     love.graphics.setFont(img.fontnormal)
@@ -654,7 +654,7 @@ function love.draw()
     love.graphics.draw(img.dialog, 0, 0)
     love.graphics.setColor(20, 20, 20)
     love.graphics.translate(20, 40)
-    love.graphics.print("Game Over!", 0, -33)
+    love.graphics.print("Game Over!", 0, -math.floor(img.fontnormal:getWidth("Game Over!")/2))
     love.graphics.print("You are bankrupt!\nYou are unable to pay the bill of\n" .. g.activebill.title .. ".", 0, 0)
     love.graphics.translate(0, 60)
     love.graphics.print("Score: " .. math.floor(g.time) .. "s (" .. getDayName(g.time) .. ")", 0, 0)
@@ -670,7 +670,7 @@ function love.draw()
     love.graphics.draw(img.dialog, 0, 0)
     love.graphics.translate(20, 40)
     love.graphics.setColor(20, 20, 20)
-    love.graphics.print("Highscore", 0, -33)
+    love.graphics.print("Highscore", 0, -math.floor(img.fontnormal:getWidth("Highscore")/2))
     for idx, high in ipairs(g.highscore) do
       if high[1] == "#You" and high[2] == math.floor(g.time) then
         love.graphics.setColor(200, 0, 0)
